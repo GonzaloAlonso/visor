@@ -1,0 +1,20 @@
+services:
+  visor:
+    build: .
+    image: visor-atc:latest
+    restart: unless-stopped
+    # Bound to localhost: put a reverse proxy (nginx, Caddy, ...) with TLS and authentication in
+    # front. Change to "8000:8000" only if the host is not reachable from the internet.
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      OPENSKY_CLIENT_ID: ${OPENSKY_CLIENT_ID:-}
+      OPENSKY_CLIENT_SECRET: ${OPENSKY_CLIENT_SECRET:-}
+      JEV_ENDPOINT: ${JEV_ENDPOINT:-}
+      JEV_API_KEY: ${JEV_API_KEY:-}
+      JEV_MODEL: ${JEV_MODEL:-}
+    volumes:
+      - visor-data:/data
+
+volumes:
+  visor-data:

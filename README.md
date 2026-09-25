@@ -19,6 +19,43 @@ The server records OpenSky snapshots of Europe (34–72°N, 25°W–45°E) into 
 | anonymous | 15 min (400 credits/day, 4 per call) | coarse tracks; the replay interpolates between snapshots |
 | `OPENSKY_CLIENT_ID` + `OPENSKY_CLIENT_SECRET` | 90 s | backfills the last hour on first start |
 
+## Deploy with Docker
+
+```sh
+cp .env.example .env            # optional: OpenSky / Jev credentials
+docker compose up -d --build
+docker compose logs -f
+```
+
+- The image contains the app and the airport and navaid data, which is downloaded at build time.
+- Recordings live in the `visor-data` volume (`/data`), so they survive rebuilds and upgrades. Keep the container running to build the 24 h history.
+- Run **one** container. The simulation state is held in memory, so do not scale the service.
+- The container listens on `127.0.0.1:8000` of the host. Publish it through a reverse proxy on its own (sub)domain; the UI uses absolute `/api` and `/ws` paths, so a sub-path such as `/visor/` won't work.
+
+**The app has no login.** Anyone who can reach it can issue clearances, reset the scenario or switch the AI on. Put authentication in front of it at the proxy. Example nginx site (TLS via certbot or similar):
+
+```nginx
+server {
+    server_name atc.example.com;
+    listen 443 ssl;
+    # ssl_certificate ...; ssl_certificate_key ...;
+
+    auth_basic "Visor ATC";
+    auth_basic_user_file /etc/nginx/visor.htpasswd;   # htpasswd -c /etc/nginx/visor.htpasswd you
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;         # WebSocket (/ws)
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_read_timeout 1h;
+    }
+}
+```
+
+With Caddy, `atc.example.com { basicauth { you <hash> }  reverse_proxy 127.0.0.1:8000 }` does the same, including TLS and WebSockets. Generate the hash with `caddy hash-password`.
+
 ## Playing
 
 - **Scenario:** *Live* runs just behind the newest snapshot. *Replay* starts anywhere in the recorded window and can run at 1–16×.

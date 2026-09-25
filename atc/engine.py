@@ -171,7 +171,7 @@ class Engine:
                 for ac in self.aircraft.values():
                     ac.step(self.t, h)
                 self.t += h
-            if self.t >= self._next_load:
+            if self.t >= self._next_load or not self.aircraft:   # empty sky: pick up data at once
                 self.loader.load(self.t + 1800)
                 self.loader.prune(self.t, {a.plan for a in self.aircraft.values()})
                 self._next_load = self.t + 20

@@ -4,7 +4,8 @@ import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-DATA_DIR = Path(os.environ.get("VISOR_DATA_DIR", ROOT / "data"))
+DATA_DIR = Path(os.environ.get("VISOR_DATA_DIR", ROOT / "data"))            # recordings (writable)
+NAVDATA_DIR = Path(os.environ.get("VISOR_NAVDATA_DIR", DATA_DIR))          # airports/navaids CSVs
 PUBLIC_DIR = ROOT / "public"
 DB_PATH = DATA_DIR / "traffic.db"
 

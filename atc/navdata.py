@@ -21,8 +21,8 @@ class NavData:
     def __init__(self):
         self.fixes = []          # dicts: ident, name, kind, lat, lon
         self.by_ident = {}       # ident -> [fix, ...] (idents are not globally unique)
-        self._load_navaids(config.DATA_DIR / "navaids.csv")
-        self._load_airports(config.DATA_DIR / "airports.csv")
+        self._load_navaids(config.NAVDATA_DIR / "navaids.csv")
+        self._load_airports(config.NAVDATA_DIR / "airports.csv")
         log.info("navdata: %d fixes", len(self.fixes))
 
     def _add(self, fix):

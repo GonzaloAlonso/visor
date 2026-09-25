@@ -61,10 +61,10 @@ class JevAgent(Agent):
     name = "jev"
 
     def __init__(self):
-        self.endpoint = os.environ.get("JEV_ENDPOINT")
-        self.api_key = os.environ.get("JEV_API_KEY")
-        self.model = os.environ.get("JEV_MODEL", "typesafe-ai/jev")
-        self.timeout = float(os.environ.get("JEV_TIMEOUT", 5))
+        self.endpoint = os.environ.get("JEV_ENDPOINT") or None
+        self.api_key = os.environ.get("JEV_API_KEY") or None
+        self.model = os.environ.get("JEV_MODEL") or "typesafe-ai/jev"
+        self.timeout = float(os.environ.get("JEV_TIMEOUT") or 5)
         self.available = bool(self.endpoint)
         self.last_error = None
 
