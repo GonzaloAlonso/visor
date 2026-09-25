@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Visor ATC</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <canvas id="gl"></canvas>
+  <canvas id="overlay"></canvas>
+
+  <header id="top">
+    <div class="brand"><span class="logo"></span>VISOR<span class="sub">ATC</span></div>
+    <div class="clock">
+      <div id="clock">--:--:--</div>
+      <div id="date">UTC</div>
+    </div>
+    <span id="mode-badge" class="badge">LIVE</span>
+    <div class="transport">
+      <button id="btn-pause" class="icon" title="Pause / resume (Space)">❚❚</button>
+      <div class="seg" id="speed-seg">
+        <button data-speed="1">1×</button><button data-speed="2">2×</button><button data-speed="4">4×</button><button data-speed="8">8×</button><button data-speed="16">16×</button>
+      </div>
+    </div>
+    <label class="field">Scenario <select id="scenario"></select></label>
+    <label class="field">Sector <select id="sector"><option value="">All Europe (observe)</option></select></label>
+    <label class="field">AI
+      <select id="ai-mode"><option value="off">Off</option><option value="advisory">Advisory</option><option value="autonomous">Autonomous</option></select>
+      <select id="ai-agent"></select>
+    </label>
+    <div class="spacer"></div>
+    <div id="score" class="score"></div>
+    <div class="seg" id="style-seg"><button data-style="radar">Radar</button><button data-style="satellite">Satellite</button></div>
+    <button id="btn-settings" class="icon" title="Display settings">⚙</button>
+  </header>
+
+  <div id="settings" class="pop hidden">
+    <label>Vertical exaggeration <input id="vexag" type="range" min="1" max="12" step="1" value="3" /><output id="vexag-out">3×</output></label>
+    <label>Speed vectors
+      <select id="vec-min"><option value="0">off</option><option value="1">1 min</option><option value="2" selected>2 min</option><option value="5">5 min</option></select>
+    </label>
+    <label><input id="opt-trails" type="checkbox" checked /> History trails</label>
+    <label><input id="opt-drops" type="checkbox" checked /> Altitude drop lines</label>
+    <label><input id="opt-labels" type="checkbox" /> Label all traffic</label>
+    <p class="hint">Left-drag pan · right-drag rotate/tilt · wheel zoom · click aircraft to select · <kbd>/</kbd> command line · <kbd>Space</kbd> pause · <kbd>Esc</kbd> deselect</p>
+  </div>
+
+  <aside id="left" class="panel">
+    <nav class="tabs">
+      <button data-tab="alerts" class="on">Alerts <b id="n-alerts">0</b></button>
+      <button data-tab="decisions">Decisions <b id="n-dec">0</b></button>
+      <button data-tab="traffic">Traffic <b id="n-traffic">0</b></button>
+    </nav>
+    <div class="tab-body">
+      <div id="tab-alerts" class="tab on"></div>
+      <div id="tab-decisions" class="tab"></div>
+      <div id="tab-traffic" class="tab"></div>
+    </div>
+  </aside>
+
+  <aside id="right" class="panel hidden">
+    <div class="strip">
+      <div class="strip-head">
+        <div>
+          <div id="s-callsign" class="callsign">—</div>
+          <div id="s-sub" class="dim"></div>
+        </div>
+        <button id="s-close" class="icon" title="Deselect (Esc)">×</button>
+      </div>
+      <div class="strip-grid">
+        <div><span>FL</span><b id="s-fl">—</b></div>
+        <div><span>CFL</span><b id="s-cfl">—</b></div>
+        <div><span>GS</span><b id="s-gs">—</b></div>
+        <div><span>HDG</span><b id="s-hdg">—</b></div>
+        <div><span>V/S</span><b id="s-vs">—</b></div>
+        <div><span>IAS</span><b id="s-ias">—</b></div>
+      </div>
+      <div class="strip-modes"><span id="s-lat"></span><span id="s-ctl"></span></div>
+      <div id="s-pending" class="pending"></div>
+    </div>
+
+    <div class="ctl">
+      <div class="ctl-row">
+        <label>Level</label>
+        <button class="step" data-fl="-10">−</button>
+        <input id="c-fl" type="number" min="0" max="600" step="10" />
+        <button class="step" data-fl="10">+</button>
+        <button id="c-fl-go" class="go">Climb</button>
+      </div>
+      <div class="ctl-row">
+        <label>Heading</label>
+        <button id="c-hdg-l" class="go ghost">◀ L</button>
+        <input id="c-hdg" type="number" min="1" max="360" step="5" />
+        <button id="c-hdg-r" class="go ghost">R ▶</button>
+        <button id="c-hdg-go" class="go">Fly</button>
+      </div>
+      <div class="ctl-row quick">
+        <label></label>
+        <button data-turn="L30">L30</button><button data-turn="L10">L10</button><button data-turn="R10">R10</button><button data-turn="R30">R30</button>
+      </div>
+      <div class="ctl-row">
+        <label>Direct</label>
+        <input id="c-dct" list="c-dct-list" placeholder="fix / airport" class="wide" />
+        <datalist id="c-dct-list"></datalist>
+        <button id="c-dct-go" class="go">DCT</button>
+      </div>
+      <div class="ctl-row">
+        <label>Speed</label>
+        <input id="c-spd" type="number" min="100" max="450" step="10" placeholder="IAS" />
+        <button id="c-spd-go" class="go">Set</button>
+        <button id="c-ron" class="go ghost wide">Resume own nav</button>
+      </div>
+    </div>
+  </aside>
+
+  <footer id="bottom" class="panel">
+    <div id="radio"></div>
+    <form id="cmd-form" autocomplete="off">
+      <span class="prompt">ATC&gt;</span>
+      <input id="cmd" placeholder="DLH4AB C 370 · TL 270 · TR 20D · DCT KPT · S 280 · RON   (press / to focus)" spellcheck="false" />
+    </form>
+  </footer>
+
+  <div id="statusbar"><span id="rec-status"></span><span id="attribution"></span></div>
+  <div id="toast" class="hidden"></div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
